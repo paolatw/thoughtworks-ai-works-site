@@ -1,0 +1,65 @@
+# tele.yaml — Mobeus Voice AI Configuration
+# This file controls your site's voice agent settings.
+# Changes pushed to your repo will auto-apply to your dashboard.
+# See public/tele-options.yaml for all valid provider/model values.
+#
+# Docs: https://docs.mobeus.ai/tele-yaml
+
+version: 1
+site:
+  name: AI Works
+  active: true
+widget:
+  position: bottom-right
+  primaryColor: '#00e5ff'
+defaults:
+  avatarEnabled: true
+  avatarVisible: true
+  micMuted: false
+  volumeMuted: false
+agent:
+  llm:
+    provider: openai
+    model: gpt-5.4
+    temperature: 0.7
+  voice:
+    provider: elevenlabs
+    voiceId: hpp4J3VqNfWAUOO0d1Us
+  stt:
+    provider: deepgram
+    language: en
+  vad:
+    provider: silero
+  behavior:
+    allowInterruptions: true
+    interruptionThreshold: 0.5
+  avatar:
+    enabled: true
+    provider: liveavatar
+    avatarId: 760aa3f0-6d00-475a-9000-ff3c72945a23
+sceneGeneration:
+  brainMode: TWO_BRAIN
+  uiEngine:
+    enabled: true
+    model: gpt-5.4
+    knowledgeMode: SEARCH
+  contextSharing:
+    shareVoiceContext: true
+    shareSceneContext: true
+toolAnnouncement:
+  mode: SPEECH
+prompts:
+  speakLlm: public/prompts/speak-llm-system-prompt.md
+  showLlm: public/prompts/show-llm-system-prompt.md
+knowledgeBases:
+  - name: AI Works
+    slug: ai-works
+    searchTopK: 3
+    searchScoreThreshold: 0.3
+paths:
+  siteFunctions: src/site-functions/register.ts
+  teleComponents: src/components/tele-components/component-registry.ts
+_info:
+  siteUrl: https://ptrxcxva.sites.mobeus.ai
+  subdomain: ptrxcxva
+  githubRepo: paolatw/thoughtworks-ai-works-site
