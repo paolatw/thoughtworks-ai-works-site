@@ -34,6 +34,10 @@ export { IncidentCard } from './IncidentCard';
 export { PipelineCard } from './PipelineCard';
 export { RiskMatrixCard } from './RiskMatrixCard';
 
+// Prompt / Interaction (2)
+export { PromptCard } from './PromptCard';
+export { PromptCarousel } from './PromptCarousel';
+
 // Executive Action (2)
 export { DecisionCard } from './DecisionCard';
 export { DelegationCard } from './DelegationCard';

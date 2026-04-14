@@ -1,15 +1,20 @@
 'use client';
 
 import { useVoiceSessionStore } from '@/lib/stores/voice-session-store';
+import { PromptCarousel } from '@/components/cards';
 import { ArrowRight } from 'lucide-react';
+import Link from 'next/link';
 
 const agentName = process.env.NEXT_PUBLIC_AGENT_NAME || 'AI Assistant';
 
 export function WelcomeLanding() {
   const connect = useVoiceSessionStore((s) => s.connect);
   const sessionState = useVoiceSessionStore((s) => s.sessionState);
+  const promptSuggestions = useVoiceSessionStore((s) => s.promptSuggestions);
+  const sendTextMessage = useVoiceSessionStore((s) => s.sendTextMessage);
 
   const isConnecting = sessionState === 'connecting';
+  const isConnected = sessionState === 'connected';
 
   return (
     <div className="min-h-dvh lg:h-dvh lg:overflow-hidden grid grid-rows-[auto_1fr_auto] p-3 md:p-6 lg:p-8">
@@ -52,26 +57,50 @@ export function WelcomeLanding() {
             Always available &middot; Instant answers &middot; Personalized help
           </p>
 
-          {/* START CONVERSATION button */}
-          <div
-            className="animate-slide-in-left"
-            style={{ animationDelay: '0.55s' }}
-          >
-            <button
-              onClick={connect}
-              disabled={isConnecting}
-              className="start-button inline-flex items-center gap-3 rounded-none disabled:opacity-60"
+          {/* Prompt suggestions carousel — shown when agent sends them */}
+          {isConnected && promptSuggestions.length > 0 && (
+            <div
+              className="animate-slide-in-left max-w-2xl"
+              style={{ animationDelay: '0.55s' }}
             >
-              {isConnecting ? 'CONNECTING...' : 'START CONVERSATION'}
-              {!isConnecting && <ArrowRight className="w-4 h-4" />}
-            </button>
-          </div>
+              <p className="text-sm text-white/50 font-voice mb-3">
+                Or pick a question below to get started.
+              </p>
+              <PromptCarousel
+                questions={promptSuggestions}
+                onSelect={(question) => sendTextMessage(question)}
+              />
+            </div>
+          )}
+
+          {/* START CONVERSATION button — hidden once connected with suggestions */}
+          {!(isConnected && promptSuggestions.length > 0) && (
+            <div
+              className="animate-slide-in-left"
+              style={{ animationDelay: '0.55s' }}
+            >
+              <button
+                onClick={connect}
+                disabled={isConnecting}
+                className="start-button inline-flex items-center gap-3 rounded-none disabled:opacity-60"
+              >
+                {isConnecting ? 'CONNECTING...' : 'START CONVERSATION'}
+                {!isConnecting && <ArrowRight className="w-4 h-4" />}
+              </button>
+            </div>
+          )}
         </div>
       </main>
 
       {/* Footer */}
       <footer className="flex items-center justify-between text-[10px] sm:text-xs font-data text-white/40 uppercase tracking-widest">
         <span>POWERED BY MOBEUS</span>
+        <Link
+          href="/cards"
+          className="hover:text-white/70 transition-colors"
+        >
+          EXPLORE ALL CARDS &rarr;
+        </Link>
         <span>VOICE AI PLATFORM</span>
       </footer>
     </div>

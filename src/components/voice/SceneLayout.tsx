@@ -3,6 +3,7 @@
 import { useVoiceSessionStore } from '@/lib/stores/voice-session-store';
 import { SceneManager } from '@/components/voice/SceneManager';
 import { useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 
 /** Always-mounted keyboard navigation for scene back/forward */
 function SceneKeyboardNav() {
@@ -47,8 +48,9 @@ export function SceneLayout({ children }: { children: React.ReactNode }) {
   const sceneActive = useVoiceSessionStore((s) => s.sceneActive);
   const skeletonLayout = useVoiceSessionStore((s) => s.skeletonLayout);
 
-  // Show SceneManager when scene is active OR when there's content to show
-  const showScene = sceneActive || currentScene || skeletonLayout;
+  const pathname = usePathname();
+  const isShowcasePage = pathname === '/cards';
+  const showScene = !isShowcasePage && (sceneActive || currentScene || skeletonLayout);
 
   return (
     <>

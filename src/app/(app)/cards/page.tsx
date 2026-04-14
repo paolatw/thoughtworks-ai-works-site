@@ -1,3 +1,5 @@
+'use client';
+
 import {
   KPIStrip,
   BarChart,
@@ -22,6 +24,8 @@ import {
   RankedListCard,
   IncidentCard,
   PipelineCard,
+  PromptCard,
+  PromptCarousel,
   RiskMatrixCard,
   DecisionCard,
   DelegationCard,
@@ -30,6 +34,8 @@ import {
   DataClusterCard,
   CalendarCard,
 } from '@/components/cards';
+import { useVoiceSessionStore } from '@/lib/stores/voice-session-store';
+import Link from 'next/link';
 
 // ─── Sample Data ──────────────────────────────────────────────────────────────
 
@@ -271,6 +277,18 @@ const pipelineCardData = {
   ],
 };
 
+const fallbackQuestions = [
+  'How does AI/works\u2122 work?',
+  'What is your delivery approach?',
+  'What makes AI/works\u2122 different?',
+  'Can you show me a live demo?',
+  'What industries do you support?',
+  'How do you handle data privacy?',
+  'What is the implementation timeline?',
+  'How does pricing work?',
+  'What integrations are available?',
+];
+
 const riskMatrixData = {
   title: 'Risk Matrix',
   risks: [
@@ -323,8 +341,8 @@ const relationshipCardData = {
 
 const countryCardData = {
   country: 'Germany',
-  flag: '🇩🇪',
-  revenue: '€18.4M',
+  flag: '\u{1F1E9}\u{1F1EA}',
+  revenue: '\u20AC18.4M',
   employees: '142',
   factories: ['Berlin', 'Munich', 'Hamburg'],
   politicalRisk: 'low' as const,
@@ -359,26 +377,14 @@ const calendarCardData = {
 
 // ─── Layout helpers ───────────────────────────────────────────────────────────
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="mb-12">
-      <h2 className="font-data text-xs uppercase tracking-[0.2em] mb-4 pb-2 border-b"
-        style={{ color: 'rgba(255,255,255,0.4)', borderColor: 'rgba(255,255,255,0.08)' }}>
-        {title}
-      </h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {children}
-      </div>
-    </section>
-  );
-}
-
 function CardFrame({
+  index,
   label,
   children,
   wide = false,
   tall = false,
 }: {
+  index: number;
   label: string;
   children: React.ReactNode;
   wide?: boolean;
@@ -386,9 +392,9 @@ function CardFrame({
 }) {
   return (
     <div className={wide ? 'md:col-span-2 xl:col-span-3' : ''}>
-      <p className="font-data text-[10px] uppercase tracking-widest mb-1.5"
-        style={{ color: 'rgba(255,255,255,0.28)' }}>
-        {label}
+      <p className="font-data text-sm uppercase tracking-widest mb-2"
+        style={{ color: 'rgba(255,255,255,0.55)' }}>
+        <span style={{ color: 'rgba(255,255,255,0.28)' }}>{index}. </span>{label}
       </p>
       <div
         className="rounded-xl p-4 border overflow-hidden"
@@ -405,142 +411,176 @@ function CardFrame({
   );
 }
 
+// ─── Dynamic PromptCarousel — reads from store, falls back to sample data ─────
+
+function DynamicPromptCarousel() {
+  const promptSuggestions = useVoiceSessionStore((s) => s.promptSuggestions);
+  const sendTextMessage = useVoiceSessionStore((s) => s.sendTextMessage);
+  const questions = promptSuggestions.length > 0 ? promptSuggestions : fallbackQuestions;
+
+  return (
+    <PromptCarousel
+      questions={questions}
+      onSelect={promptSuggestions.length > 0 ? (q) => sendTextMessage(q) : undefined}
+    />
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function CardShowcasePage() {
   return (
-    <main className="min-h-screen px-6 py-10 md:px-12" style={{ backgroundColor: 'var(--background)' }}>
-      {/* Header */}
-      <div className="mb-10">
-        <h1 className="font-hero text-3xl md:text-4xl font-bold mb-2" style={{ color: 'var(--foreground)' }}>
-          Card Showcase
-        </h1>
-        <p className="font-voice text-base" style={{ color: 'rgba(255,255,255,0.45)' }}>
-          Visual reference for all {30} card components — rendered with sample data exactly as they appear in live scenes.
-        </p>
-      </div>
+    <div className="h-full overflow-y-auto">
+      <main className="min-h-screen px-6 py-10 md:px-12" style={{ backgroundColor: 'var(--background)' }}>
+        {/* Header */}
+        <div className="mb-10">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1.5 text-xs font-data uppercase tracking-widest mb-4 transition-colors"
+            style={{ color: 'rgba(255,255,255,0.45)' }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+            Back to Home
+          </Link>
+          <h1 className="font-hero text-3xl md:text-4xl font-bold mb-2" style={{ color: 'var(--foreground)' }}>
+            Card Showcase
+          </h1>
+          <p className="font-voice text-base" style={{ color: 'rgba(255,255,255,0.45)' }}>
+            Visual reference for all 32 card components — rendered with sample data exactly as they appear in live scenes.
+          </p>
+        </div>
 
-      {/* Core Data */}
-      <Section title="Core Data">
-        <CardFrame label="KPIStrip" wide>
-          <KPIStrip {...kpiStripData} />
-        </CardFrame>
-        <CardFrame label="BarChart">
-          <BarChart {...barChartData} />
-        </CardFrame>
-        <CardFrame label="DonutChart">
-          <DonutChart {...donutChartData} />
-        </CardFrame>
-        <CardFrame label="LineChart">
-          <LineChart {...lineChartData} />
-        </CardFrame>
-        <CardFrame label="TableCard" wide>
-          <TableCard {...tableCardData} />
-        </CardFrame>
-        <CardFrame label="MetricList">
-          <MetricList {...metricListData} />
-        </CardFrame>
-        <CardFrame label="AlertCard" tall>
-          <AlertCard {...alertCardData} />
-        </CardFrame>
-        <CardFrame label="StatCard">
-          <StatCard {...statCardData} />
-        </CardFrame>
-        <CardFrame label="CalloutCard">
-          <CalloutCard {...calloutCardData} />
-        </CardFrame>
-      </Section>
-
-      {/* Data Visualization */}
-      <Section title="Data Visualization">
-        <CardFrame label="HeatmapCard" wide>
-          <HeatmapCard {...heatmapData} />
-        </CardFrame>
-        <CardFrame label="TimelineCard" tall>
-          <TimelineCard {...timelineData} />
-        </CardFrame>
-        <CardFrame label="WaterfallCard" tall>
-          <WaterfallCard {...waterfallData} />
-        </CardFrame>
-        <CardFrame label="StackedBarCard">
-          <StackedBarCard {...stackedBarData} />
-        </CardFrame>
-      </Section>
-
-      {/* People & Organization */}
-      <Section title="People & Organization">
-        <CardFrame label="PersonCard">
-          <PersonCard {...personCardData} />
-        </CardFrame>
-        <CardFrame label="OrgRoster" tall wide>
-          <OrgRoster {...orgRosterData} />
-        </CardFrame>
-      </Section>
-
-      {/* Rich Content */}
-      <Section title="Rich Content">
-        <CardFrame label="ChecklistCard" tall>
-          <ChecklistCard {...checklistData} />
-        </CardFrame>
-        <CardFrame label="InfoCard">
-          <InfoCard {...infoCardData} />
-        </CardFrame>
-        <CardFrame label="BulletListCard">
-          <BulletListCard {...bulletListData} />
-        </CardFrame>
-        <CardFrame label="ImageCard">
-          <ImageCard {...imageCardData} />
-        </CardFrame>
-      </Section>
-
-      {/* Comparison */}
-      <Section title="Comparison">
-        <CardFrame label="ComparisonTable" wide tall>
-          <ComparisonTable {...comparisonTableData} />
-        </CardFrame>
-        <CardFrame label="RankedListCard" tall>
-          <RankedListCard {...rankedListData} />
-        </CardFrame>
-      </Section>
-
-      {/* Operational */}
-      <Section title="Operational">
-        <CardFrame label="IncidentCard" tall>
-          <IncidentCard {...incidentCardData} />
-        </CardFrame>
-        <CardFrame label="PipelineCard" tall>
-          <PipelineCard {...pipelineCardData} />
-        </CardFrame>
-        <CardFrame label="RiskMatrixCard" tall>
-          <RiskMatrixCard {...riskMatrixData} />
-        </CardFrame>
-      </Section>
-
-      {/* Executive Action */}
-      <Section title="Executive Action">
-        <CardFrame label="DecisionCard" tall>
-          <DecisionCard {...decisionCardData} />
-        </CardFrame>
-        <CardFrame label="DelegationCard" tall>
-          <DelegationCard {...delegationCardData} />
-        </CardFrame>
-      </Section>
-
-      {/* Cross-Domain Intelligence */}
-      <Section title="Cross-Domain Intelligence">
-        <CardFrame label="RelationshipCard" tall>
-          <RelationshipCard {...relationshipCardData} />
-        </CardFrame>
-        <CardFrame label="CountryCard" tall>
-          <CountryCard {...countryCardData} />
-        </CardFrame>
-        <CardFrame label="DataClusterCard" tall>
-          <DataClusterCard {...dataClusterData} />
-        </CardFrame>
-        <CardFrame label="CalendarCard" tall>
-          <CalendarCard {...calendarCardData} />
-        </CardFrame>
-      </Section>
-    </main>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {/* 1 */}
+          <CardFrame index={1} label="AlertCard" tall>
+            <AlertCard {...alertCardData} />
+          </CardFrame>
+          {/* 2 */}
+          <CardFrame index={2} label="BarChart">
+            <BarChart {...barChartData} />
+          </CardFrame>
+          {/* 3 */}
+          <CardFrame index={3} label="BulletListCard">
+            <BulletListCard {...bulletListData} />
+          </CardFrame>
+          {/* 4 */}
+          <CardFrame index={4} label="CalendarCard" tall>
+            <CalendarCard {...calendarCardData} />
+          </CardFrame>
+          {/* 5 */}
+          <CardFrame index={5} label="CalloutCard">
+            <CalloutCard {...calloutCardData} />
+          </CardFrame>
+          {/* 6 */}
+          <CardFrame index={6} label="ChecklistCard" tall>
+            <ChecklistCard {...checklistData} />
+          </CardFrame>
+          {/* 7 */}
+          <CardFrame index={7} label="ComparisonTable" wide tall>
+            <ComparisonTable {...comparisonTableData} />
+          </CardFrame>
+          {/* 8 */}
+          <CardFrame index={8} label="CountryCard" tall>
+            <CountryCard {...countryCardData} />
+          </CardFrame>
+          {/* 9 */}
+          <CardFrame index={9} label="DataClusterCard" tall>
+            <DataClusterCard {...dataClusterData} />
+          </CardFrame>
+          {/* 10 */}
+          <CardFrame index={10} label="DecisionCard" tall>
+            <DecisionCard {...decisionCardData} />
+          </CardFrame>
+          {/* 11 */}
+          <CardFrame index={11} label="DelegationCard" tall>
+            <DelegationCard {...delegationCardData} />
+          </CardFrame>
+          {/* 12 */}
+          <CardFrame index={12} label="DonutChart">
+            <DonutChart {...donutChartData} />
+          </CardFrame>
+          {/* 13 */}
+          <CardFrame index={13} label="HeatmapCard" wide>
+            <HeatmapCard {...heatmapData} />
+          </CardFrame>
+          {/* 14 */}
+          <CardFrame index={14} label="ImageCard">
+            <ImageCard {...imageCardData} />
+          </CardFrame>
+          {/* 15 */}
+          <CardFrame index={15} label="IncidentCard" tall>
+            <IncidentCard {...incidentCardData} />
+          </CardFrame>
+          {/* 16 */}
+          <CardFrame index={16} label="InfoCard">
+            <InfoCard {...infoCardData} />
+          </CardFrame>
+          {/* 17 */}
+          <CardFrame index={17} label="KPIStrip" wide>
+            <KPIStrip {...kpiStripData} />
+          </CardFrame>
+          {/* 18 */}
+          <CardFrame index={18} label="LineChart">
+            <LineChart {...lineChartData} />
+          </CardFrame>
+          {/* 19 */}
+          <CardFrame index={19} label="MetricList">
+            <MetricList {...metricListData} />
+          </CardFrame>
+          {/* 20 */}
+          <CardFrame index={20} label="OrgRoster" wide tall>
+            <OrgRoster {...orgRosterData} />
+          </CardFrame>
+          {/* 21 */}
+          <CardFrame index={21} label="PersonCard">
+            <PersonCard {...personCardData} />
+          </CardFrame>
+          {/* 22 */}
+          <CardFrame index={22} label="PipelineCard" tall>
+            <PipelineCard {...pipelineCardData} />
+          </CardFrame>
+          {/* 23 */}
+          <CardFrame index={23} label="PromptCard">
+            <PromptCard question="How does AI/works™ work?" />
+          </CardFrame>
+          {/* 24 */}
+          <CardFrame index={24} label="PromptCarousel" wide tall>
+            <DynamicPromptCarousel />
+          </CardFrame>
+          {/* 25 */}
+          <CardFrame index={25} label="RankedListCard" tall>
+            <RankedListCard {...rankedListData} />
+          </CardFrame>
+          {/* 26 */}
+          <CardFrame index={26} label="RelationshipCard" tall>
+            <RelationshipCard {...relationshipCardData} />
+          </CardFrame>
+          {/* 27 */}
+          <CardFrame index={27} label="RiskMatrixCard" tall>
+            <RiskMatrixCard {...riskMatrixData} />
+          </CardFrame>
+          {/* 28 */}
+          <CardFrame index={28} label="StackedBarCard">
+            <StackedBarCard {...stackedBarData} />
+          </CardFrame>
+          {/* 29 */}
+          <CardFrame index={29} label="StatCard">
+            <StatCard {...statCardData} />
+          </CardFrame>
+          {/* 30 */}
+          <CardFrame index={30} label="TableCard" wide>
+            <TableCard {...tableCardData} />
+          </CardFrame>
+          {/* 31 */}
+          <CardFrame index={31} label="TimelineCard" tall>
+            <TimelineCard {...timelineData} />
+          </CardFrame>
+          {/* 32 */}
+          <CardFrame index={32} label="WaterfallCard" tall>
+            <WaterfallCard {...waterfallData} />
+          </CardFrame>
+        </div>
+      </main>
+    </div>
   );
 }
