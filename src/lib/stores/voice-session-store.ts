@@ -116,9 +116,6 @@ interface VoiceSessionState {
   sceneActive: boolean;
   skeletonLayout: string | null;
 
-  // Prompt suggestions (from agent on session start)
-  promptSuggestions: string[];
-
   // Chat panel state
   isChatPanelOpen: boolean;
 
@@ -196,9 +193,6 @@ export const useVoiceSessionStore = create<VoiceSessionState>((set, get) => ({
   sceneFuture: [],
   sceneActive: false,
   skeletonLayout: null,
-
-  // Prompt suggestions
-  promptSuggestions: [],
 
   // Chat panel
   isChatPanelOpen: false,
@@ -559,7 +553,6 @@ export const useVoiceSessionStore = create<VoiceSessionState>((set, get) => ({
         templates: [],
         // currentScene intentionally preserved — last scene stays visible after disconnect
         skeletonLayout: null,
-        promptSuggestions: [],
         _preWarm: null,
         _preWarmState: 'idle',
       });
@@ -882,7 +875,6 @@ function setupRoomEventListeners(
         sceneHistory: [],
         sceneFuture: [],
         skeletonLayout: null,
-        promptSuggestions: [],
       });
     }
   });
@@ -1063,7 +1055,6 @@ function setupRoomEventListeners(
       templates: [],
       // currentScene intentionally preserved — last scene stays visible after disconnect
       skeletonLayout: null,
-      promptSuggestions: [],
     });
   });
 
@@ -1143,20 +1134,6 @@ function setupRoomEventListeners(
       set((state) => ({ toolActivity: [...state.toolActivity, entry] }));
     } catch (err) {
       console.error('Error parsing tool-activity data:', err);
-    }
-  });
-
-  // DataReceived: handle prompt-suggestions from agent (session start)
-  room.on(RoomEvent.DataReceived, (payload: Uint8Array, _participant: RemoteParticipant | undefined, _kind: unknown, topic: string | undefined) => {
-    if (topic !== 'prompt-suggestions') return;
-    try {
-      const message = JSON.parse(new TextDecoder().decode(payload));
-      console.log('DataReceived [prompt-suggestions]:', message);
-      if (message.type === 'prompt-suggestions' && Array.isArray(message.questions)) {
-        set({ promptSuggestions: message.questions.filter((q: unknown) => typeof q === 'string' && q.length > 0) });
-      }
-    } catch (err) {
-      console.error('Error parsing prompt-suggestions data:', err);
     }
   });
 

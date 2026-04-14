@@ -61,7 +61,7 @@ export function ControlBar() {
   const zIndex = isChatPanelOpen ? 'z-[100]' : 'z-[60]';
 
   return (
-    <div className={`fixed top-4 right-4 md:top-6 md:right-8 ${zIndex} inline-flex items-center gap-2 sm:gap-3 transition-all duration-300 ease-in-out`}>
+    <div className={`${zIndex}`}>
 
       {/* Chat toggle */}
       {isConnected && (

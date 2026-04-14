@@ -1,108 +1,158 @@
 'use client';
 
 import { useVoiceSessionStore } from '@/lib/stores/voice-session-store';
-import { PromptCarousel } from '@/components/cards';
-import { ArrowRight } from 'lucide-react';
-import Link from 'next/link';
+import { ChevronLeft } from 'lucide-react';
 
-const agentName = process.env.NEXT_PUBLIC_AGENT_NAME || 'AI Assistant';
+const agentName = process.env.NEXT_PUBLIC_AGENT_NAME || 'Catherine';
 
-export function WelcomeLanding() {
+interface WelcomeLandingProps {
+  knowledgeBaseQuestions: string[];
+}
+
+export function WelcomeLanding({
+  knowledgeBaseQuestions: _knowledgeBaseQuestions,
+}: WelcomeLandingProps) {
   const connect = useVoiceSessionStore((s) => s.connect);
   const sessionState = useVoiceSessionStore((s) => s.sessionState);
-  const promptSuggestions = useVoiceSessionStore((s) => s.promptSuggestions);
-  const sendTextMessage = useVoiceSessionStore((s) => s.sendTextMessage);
-
   const isConnecting = sessionState === 'connecting';
   const isConnected = sessionState === 'connected';
 
   return (
-    <div className="min-h-dvh lg:h-dvh lg:overflow-hidden grid grid-rows-[auto_1fr_auto] p-3 md:p-6 lg:p-8">
-      {/* Header — agent name top-left */}
-      <header className="flex items-center">
-        <span className="text-white/80 font-hero text-lg md:text-xl font-semibold tracking-tight">
-          {agentName}
-        </span>
+    <div
+      className="welcome-landing min-h-dvh relative overflow-hidden flex flex-col"
+      style={{
+        backgroundImage: `url(/avatar/background-hero.png)`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'right top',
+        backgroundRepeat: 'no-repeat',
+        backgroundColor: '#0c2127',
+      }}
+    >
+      {/* Dark overlay for mobile readability */}
+      <div className="absolute inset-0 bg-black/40 md:bg-black/20 lg:bg-transparent z-0 pointer-events-none" />
+
+      {/* Header bar */}
+      <header className="relative z-10 h-16 md:h-20 bg-transparent border-b border-cyan-800 overflow-hidden shrink-0">
+        <div className="h-full px-4 sm:px-6 md:px-10 flex items-center justify-between">
+          <ThoughtworksLogo />
+        </div>
       </header>
 
-      {/* Content — left-aligned, vertically centered */}
-      <main className="flex items-center">
-        <div className="max-w-2xl space-y-6">
-          {/* Badge pill */}
-          <div
-            className="animate-slide-in-left"
-            style={{ animationDelay: '0.1s' }}
+      {/* Back link */}
+      <nav className="relative z-10 px-4 sm:px-6 md:px-10 lg:px-[43px] pt-3">
+        <button
+          onClick={() => window.history.back()}
+          className="inline-flex items-center gap-2 md:gap-3.5 text-white text-base md:text-lg font-bold font-body leading-7 hover:text-white/70 transition-colors"
+        >
+          <ChevronLeft className="w-3.5 h-3.5 stroke-[3]" />
+          Back
+        </button>
+      </nav>
+
+      {/* Main content */}
+      <main className="relative z-10 px-4 sm:px-6 md:px-10 lg:px-[140px] flex-1">
+        <h1
+          className="animate-slide-in-left font-display text-[24px] sm:text-[28px] md:text-[34px] font-bold leading-[1.2] md:leading-[40.8px] text-white mt-6 sm:mt-8 lg:mt-[34px]"
+          style={{ animationDelay: '0.15s' }}
+        >
+          Hello, I&rsquo;m {agentName},
+          <br />
+          your AI guide to AI/works&trade;
+        </h1>
+
+        <p
+          className="animate-slide-in-left font-body text-base sm:text-lg md:text-[20px] font-normal leading-[1.6] md:leading-[32.5px] text-white max-w-[628px] mt-5 sm:mt-6 lg:mt-[44px]"
+          style={{ animationDelay: '0.3s' }}
+        >
+          Ask me anything about the Thoughtworks Agentic Development
+          Platform, its capabilities, its architecture, and how it fits your
+          organization.
+        </p>
+
+        <div
+          className="animate-slide-in-left mt-6 sm:mt-8 lg:mt-[43px]"
+          style={{ animationDelay: '0.45s' }}
+        >
+          <button
+            onClick={connect}
+            disabled={isConnecting || isConnected}
+            className="tw-cta-button disabled:opacity-60"
           >
-            <span className="inline-block rounded-full bg-white/10 px-4 py-1.5 text-xs font-data tracking-[0.15em] text-white/80 uppercase backdrop-blur-sm border border-white/10">
-              {agentName} &middot; AI POWERED
-            </span>
-          </div>
-
-          {/* Title */}
-          <h1
-            className="animate-slide-in-left font-hero text-5xl sm:text-6xl md:text-7xl lg:text-8xl leading-[0.95] tracking-tight text-white"
-            style={{ animationDelay: '0.25s' }}
-          >
-            Your AI{' '}
-            <span className="text-[#00e5ff]">
-              Assistant
-            </span>
-          </h1>
-
-          {/* Subtitle */}
-          <p
-            className="animate-slide-in-left text-base sm:text-lg md:text-xl text-white/60 max-w-lg"
-            style={{ animationDelay: '0.4s' }}
-          >
-            Always available &middot; Instant answers &middot; Personalized help
-          </p>
-
-          {/* Prompt suggestions carousel — shown when agent sends them */}
-          {isConnected && promptSuggestions.length > 0 && (
-            <div
-              className="animate-slide-in-left max-w-2xl"
-              style={{ animationDelay: '0.55s' }}
-            >
-              <p className="text-sm text-white/50 font-voice mb-3">
-                Or pick a question below to get started.
-              </p>
-              <PromptCarousel
-                questions={promptSuggestions}
-                onSelect={(question) => sendTextMessage(question)}
-              />
-            </div>
-          )}
-
-          {/* START CONVERSATION button — hidden once connected with suggestions */}
-          {!(isConnected && promptSuggestions.length > 0) && (
-            <div
-              className="animate-slide-in-left"
-              style={{ animationDelay: '0.55s' }}
-            >
-              <button
-                onClick={connect}
-                disabled={isConnecting}
-                className="start-button inline-flex items-center gap-3 rounded-none disabled:opacity-60"
-              >
-                {isConnecting ? 'CONNECTING...' : 'START CONVERSATION'}
-                {!isConnecting && <ArrowRight className="w-4 h-4" />}
-              </button>
-            </div>
-          )}
+            {isConnecting
+              ? 'Connecting...'
+              : isConnected
+                ? 'Connected'
+                : 'Start conversation'}
+          </button>
         </div>
       </main>
 
       {/* Footer */}
-      <footer className="flex items-center justify-between text-[10px] sm:text-xs font-data text-white/40 uppercase tracking-widest">
-        <span>POWERED BY MOBEUS</span>
-        <Link
-          href="/cards"
-          className="hover:text-white/70 transition-colors"
-        >
-          EXPLORE ALL CARDS &rarr;
-        </Link>
-        <span>VOICE AI PLATFORM</span>
+      <footer className="relative z-10 px-4 sm:px-6 md:px-10 lg:px-[144px] pb-4 md:pb-6 pt-4 flex flex-col gap-4 md:gap-6 shrink-0">
+        <AIWorksLogo />
+
+        <p className="font-body text-[10px] sm:text-xs font-normal leading-4 text-slate-50 max-w-[859px]">
+          Our assistant helps you find content about AI/works. By asking a
+          question, you acknowledge that we will process your data in accordance
+          with our{' '}
+          <span className="underline">Privacy Policy</span>, and consent to
+          de-identified tracking of your conversation to help us improve the
+          experience. Please close this page if you don&apos;t agree to these
+          conditions. While we strive for accuracy, AI responses may be
+          inaccurate.
+        </p>
+
+        <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-start gap-3 sm:gap-4">
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 lg:w-[836px]">
+            {[
+              'Privacy Policy',
+              'Modern slavery statement',
+              'Code of conduct',
+              'Integrity helpline',
+              'Speakup Policy',
+              'Sustainable procurement policy',
+            ].map((label) => (
+              <span
+                key={label}
+                className="font-body text-[10px] sm:text-xs font-normal leading-4 text-white"
+              >
+                {label}
+              </span>
+            ))}
+          </div>
+          <div className="flex items-start gap-2.5">
+            <span className="font-body text-[10px] sm:text-xs font-normal leading-4 text-white">
+              Powered by Mobeus
+            </span>
+            <span className="font-body text-[10px] sm:text-xs font-normal leading-4 text-white">
+              |
+            </span>
+            <span className="font-body text-[10px] sm:text-xs font-normal leading-4 text-white">
+              &copy; 2025 Thoughtworks, Inc.
+            </span>
+          </div>
+        </div>
       </footer>
     </div>
+  );
+}
+
+function ThoughtworksLogo() {
+  return (
+    <img
+      src="/thoughtworks_logo.svg"
+      alt="Thoughtworks"
+      className="h-6 sm:h-8 w-auto"
+    />
+  );
+}
+
+function AIWorksLogo() {
+  return (
+    <img
+      src="/aiworks_logo.png"
+      alt="AI/works — Agentic Development Platform"
+      className="w-20 h-8 sm:w-24 sm:h-10 object-contain"
+    />
   );
 }

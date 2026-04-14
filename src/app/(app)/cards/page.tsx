@@ -1,5 +1,3 @@
-'use client';
-
 import {
   KPIStrip,
   BarChart,
@@ -34,7 +32,7 @@ import {
   DataClusterCard,
   CalendarCard,
 } from '@/components/cards';
-import { useVoiceSessionStore } from '@/lib/stores/voice-session-store';
+import { getSection1Questions } from '@/lib/knowledge-base-questions';
 import Link from 'next/link';
 
 // ─── Sample Data ──────────────────────────────────────────────────────────────
@@ -277,18 +275,6 @@ const pipelineCardData = {
   ],
 };
 
-const fallbackQuestions = [
-  'How does AI/works\u2122 work?',
-  'What is your delivery approach?',
-  'What makes AI/works\u2122 different?',
-  'Can you show me a live demo?',
-  'What industries do you support?',
-  'How do you handle data privacy?',
-  'What is the implementation timeline?',
-  'How does pricing work?',
-  'What integrations are available?',
-];
-
 const riskMatrixData = {
   title: 'Risk Matrix',
   risks: [
@@ -411,24 +397,10 @@ function CardFrame({
   );
 }
 
-// ─── Dynamic PromptCarousel — reads from store, falls back to sample data ─────
-
-function DynamicPromptCarousel() {
-  const promptSuggestions = useVoiceSessionStore((s) => s.promptSuggestions);
-  const sendTextMessage = useVoiceSessionStore((s) => s.sendTextMessage);
-  const questions = promptSuggestions.length > 0 ? promptSuggestions : fallbackQuestions;
-
-  return (
-    <PromptCarousel
-      questions={questions}
-      onSelect={promptSuggestions.length > 0 ? (q) => sendTextMessage(q) : undefined}
-    />
-  );
-}
-
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export default function CardShowcasePage() {
+export default async function CardShowcasePage() {
+  const knowledgeBaseQuestions = await getSection1Questions();
   return (
     <div className="h-full overflow-y-auto">
       <main className="min-h-screen px-6 py-10 md:px-12" style={{ backgroundColor: 'var(--background)' }}>
@@ -545,7 +517,7 @@ export default function CardShowcasePage() {
           </CardFrame>
           {/* 24 */}
           <CardFrame index={24} label="PromptCarousel" wide tall>
-            <DynamicPromptCarousel />
+            <PromptCarousel questions={knowledgeBaseQuestions} />
           </CardFrame>
           {/* 25 */}
           <CardFrame index={25} label="RankedListCard" tall>
