@@ -998,24 +998,24 @@ function setupRoomEventListeners(
         }
       });
 
-      // Trigger the agent's greeting once it's ready
+      // Trigger the agent's greeting (invisible prompt, agent reply will appear in transcript)
       setTimeout(() => {
         const { room: currentRoom } = get();
         if (currentRoom?.localParticipant) {
           currentRoom.localParticipant.performRpc({
             destinationIdentity: participant.identity,
-            method: 'informAgent',
+            method: 'tellAgent',
             payload: JSON.stringify({
-              message: 'The user just connected to the session. Please greet them warmly and introduce yourself as their AI guide to AI/works.',
+              message: 'Hello!',
             }),
           }).then((res) => {
-            logSiteToAgent('informAgent (greeting)', { triggered: true }, res);
+            logSiteToAgent('tellAgent (greeting trigger)', { triggered: true }, res);
           }).catch((err) => {
-            logSiteToAgent('informAgent (greeting)', { triggered: true }, undefined, err);
-            console.warn('Greeting trigger failed (agent may not be ready yet):', err);
+            logSiteToAgent('tellAgent (greeting trigger)', { triggered: true }, undefined, err);
+            console.warn('Greeting trigger failed:', err);
           });
         }
-      }, 1500);
+      }, 2000);
     }
   });
 
