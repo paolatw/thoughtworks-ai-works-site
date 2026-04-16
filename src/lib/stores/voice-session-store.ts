@@ -13,6 +13,15 @@ import {
 import { ComponentTemplate, SceneData } from '@/types';
 import { parseDSL } from '@/utils/parseDSL';
 import { setInformTeleRoom } from '@/utils/informTele';
+import {
+  logSiteToAgent,
+  logAgentToSite,
+  logDataChannel,
+  logStateChange,
+  logLifecycle,
+  logSpeech,
+  logSiteFunction,
+} from '@/lib/observability';
 
 // Agent state from LiveKit
 export type AgentState =
@@ -261,12 +270,14 @@ export const useVoiceSessionStore = create<VoiceSessionState>((set, get) => ({
       // Do NOT register RPC handlers yet (agent not present)
 
       console.log('Pre-warm: room connected, WebRTC warm');
+      logLifecycle('pre-warm connected', { roomName: sessionData.roomName });
 
       // Handle the pre-warmed room being disconnected (e.g. timeout)
       room.once(RoomEvent.Disconnected, () => {
         const { _preWarmState } = get();
         if (_preWarmState === 'ready') {
           console.log('Pre-warm: room disconnected, resetting');
+          logLifecycle('pre-warm disconnected (timeout)');
           set({ _preWarm: null, _preWarmState: 'idle' });
         }
       });
@@ -350,6 +361,7 @@ export const useVoiceSessionStore = create<VoiceSessionState>((set, get) => ({
       // ── Fast path: pre-warmed room is ready ──
       if (_preWarmState === 'ready' && _preWarm && _preWarm.room.state === 'connected') {
         console.log('Using pre-warmed room:', _preWarm.roomName);
+        logLifecycle('connect (fast path)', { roomName: _preWarm.roomName });
 
         const { room, roomName, sessionId, templates, defaults, agentName } = _preWarm;
 
@@ -396,12 +408,14 @@ export const useVoiceSessionStore = create<VoiceSessionState>((set, get) => ({
           _preWarmState: 'idle',
         });
         applyAudioRouting(get);
+        logLifecycle('session connected', { sessionId, path: 'fast' });
 
         return;
       }
 
       // ── Slow path: fallback (no pre-warm or pre-warm failed) ──
       console.log('No pre-warm available, using standard flow');
+      logLifecycle('connect (slow path)');
 
       // Clean up stale pre-warm if any
       if (_preWarm?.room) {
@@ -490,6 +504,7 @@ export const useVoiceSessionStore = create<VoiceSessionState>((set, get) => ({
         sessionState: 'connected',
       });
       applyAudioRouting(get);
+      logLifecycle('session connected', { sessionId: sessionData.sessionId, path: 'slow' });
 
       // Note: No PATCH /api/sessions/{id} needed — agent shutdown callback handles persistence
 
@@ -510,6 +525,7 @@ export const useVoiceSessionStore = create<VoiceSessionState>((set, get) => ({
     if (!room) return;
 
     set({ sessionState: 'disconnecting' });
+    logLifecycle('session disconnecting');
 
     try {
       // Note: No PATCH /api/sessions/{id} needed — agent shutdown callback handles persistence
@@ -556,6 +572,7 @@ export const useVoiceSessionStore = create<VoiceSessionState>((set, get) => ({
         _preWarm: null,
         _preWarmState: 'idle',
       });
+      logLifecycle('session disconnected');
     }
   },
 
@@ -610,10 +627,11 @@ export const useVoiceSessionStore = create<VoiceSessionState>((set, get) => ({
     const nextEnabled = !avatarEnabled;
     try {
       set({ avatarTogglePending: true });
+      const rpcPayload = { enabled: nextEnabled };
       const response = await room.localParticipant.performRpc({
         destinationIdentity: targetAgent.identity,
         method: 'avatarToggle',
-        payload: JSON.stringify({ enabled: nextEnabled }),
+        payload: JSON.stringify(rpcPayload),
       });
 
       let parsed: { success?: boolean } = {};
@@ -623,6 +641,8 @@ export const useVoiceSessionStore = create<VoiceSessionState>((set, get) => ({
         parsed = {};
       }
 
+      logSiteToAgent('avatarToggle', rpcPayload, parsed);
+
       if (parsed.success !== false) {
         set({ avatarEnabled: nextEnabled });
         if (nextEnabled) {
@@ -631,6 +651,7 @@ export const useVoiceSessionStore = create<VoiceSessionState>((set, get) => ({
         applyAudioRouting(get);
       }
     } catch (error) {
+      logSiteToAgent('avatarToggle', { enabled: nextEnabled }, undefined, error);
       console.error('RPC avatarToggle error:', error);
     } finally {
       set({ avatarTogglePending: false });
@@ -647,6 +668,7 @@ export const useVoiceSessionStore = create<VoiceSessionState>((set, get) => ({
 
     try {
       await room.localParticipant.sendText(trimmed, { topic: 'lk.chat' });
+      logSiteToAgent('sendTextMessage', { text: trimmed });
       set((state) => ({
         transcripts: [
           ...state.transcripts,
@@ -662,6 +684,7 @@ export const useVoiceSessionStore = create<VoiceSessionState>((set, get) => ({
         ],
       }));
     } catch (error) {
+      logSiteToAgent('sendTextMessage', { text: trimmed }, undefined, error);
       console.error('Failed to send text input:', error);
     }
   },
@@ -710,13 +733,16 @@ export const useVoiceSessionStore = create<VoiceSessionState>((set, get) => ({
     const { room, agentParticipant } = get();
     if (!room?.localParticipant || !agentParticipant) return;
 
+    const rpcPayload = { templateId, formId, values };
     try {
-      await room.localParticipant.performRpc({
+      const response = await room.localParticipant.performRpc({
         destinationIdentity: agentParticipant.identity,
         method: 'formSubmit',
-        payload: JSON.stringify({ templateId, formId, values }),
+        payload: JSON.stringify(rpcPayload),
       });
+      logSiteToAgent('formSubmit', rpcPayload, response);
     } catch (error) {
+      logSiteToAgent('formSubmit', rpcPayload, undefined, error);
       console.error('RPC formSubmit error:', error);
     }
   },
@@ -787,8 +813,11 @@ export const useVoiceSessionStore = create<VoiceSessionState>((set, get) => ({
         method: 'tellAgent',
         payload: JSON.stringify({ message: trimmed }),
       });
-      return JSON.parse(response) as { success: boolean; error?: string };
+      const parsed = JSON.parse(response) as { success: boolean; error?: string };
+      logSiteToAgent('tellAgent', { message: trimmed }, parsed);
+      return parsed;
     } catch (error) {
+      logSiteToAgent('tellAgent', { message: trimmed }, undefined, error);
       console.error('tellAgent error:', error);
       return { success: false, error: String(error) };
     }
@@ -805,8 +834,11 @@ export const useVoiceSessionStore = create<VoiceSessionState>((set, get) => ({
         method: 'informAgent',
         payload: JSON.stringify({ message }),
       });
-      return JSON.parse(response) as { success: boolean; error?: string };
+      const parsed = JSON.parse(response) as { success: boolean; error?: string };
+      logSiteToAgent('informAgent', { message }, parsed);
+      return parsed;
     } catch (error) {
+      logSiteToAgent('informAgent', { message }, undefined, error);
       console.error('informAgent error:', error);
       return { success: false, error: String(error) };
     }
@@ -844,6 +876,7 @@ function setupRoomEventListeners(
   // Connection state changes
   room.on(RoomEvent.ConnectionStateChanged, (connectionState: ConnectionState) => {
     console.log('Connection state:', connectionState);
+    logLifecycle('ConnectionStateChanged', { state: connectionState });
     if (connectionState === ConnectionState.Disconnected) {
       const { avatarAudioElement, agentAudioElement } = get();
       avatarAudioElement?.remove();
@@ -882,6 +915,7 @@ function setupRoomEventListeners(
   // Track subscriptions (for agent/avatar audio and video)
   room.on(RoomEvent.TrackSubscribed, (track: RemoteTrack, publication: RemoteTrackPublication, participant: RemoteParticipant) => {
     console.log('Track subscribed:', track.kind, 'from', participant.identity);
+    logLifecycle('TrackSubscribed', { kind: track.kind, participant: participant.identity, isAvatar: !!participant.attributes?.['lk.publish_on_behalf'] });
 
     const publishOnBehalf = participant.attributes?.['lk.publish_on_behalf'];
 
@@ -917,6 +951,7 @@ function setupRoomEventListeners(
 
   room.on(RoomEvent.TrackUnsubscribed, (track: RemoteTrack, publication: RemoteTrackPublication, participant: RemoteParticipant) => {
     console.log('Track unsubscribed:', track.kind);
+    logLifecycle('TrackUnsubscribed', { kind: track.kind, participant: participant.identity });
 
     if (track.kind === Track.Kind.Audio) {
       const avatarElementId = `audio-avatar-${participant.identity}`;
@@ -944,6 +979,7 @@ function setupRoomEventListeners(
   // Participant connected
   room.on(RoomEvent.ParticipantConnected, (participant: RemoteParticipant) => {
     console.log('Participant connected:', participant.identity, 'kind:', participant.kind);
+    logLifecycle('ParticipantConnected', { identity: participant.identity, kind: participant.kind, isAvatar: !!participant.attributes?.['lk.publish_on_behalf'] });
 
     const publishOnBehalf = participant.attributes?.['lk.publish_on_behalf'];
     if (publishOnBehalf) {
@@ -954,11 +990,11 @@ function setupRoomEventListeners(
 
     if (participant.kind === ParticipantKind.AGENT) {
       set({ agentParticipant: participant });
-      updateAgentStateFromAttributes(participant, set);
+      updateAgentStateFromAttributes(participant, set, get);
 
       participant.on('attributesChanged', (changedAttributes) => {
         if (AGENT_STATE_ATTRIBUTE in changedAttributes) {
-          updateAgentStateFromAttributes(participant, set);
+          updateAgentStateFromAttributes(participant, set, get);
         }
       });
     }
@@ -967,6 +1003,7 @@ function setupRoomEventListeners(
   // Participant disconnected
   room.on(RoomEvent.ParticipantDisconnected, (participant: RemoteParticipant) => {
     console.log('Participant disconnected:', participant.identity);
+    logLifecycle('ParticipantDisconnected', { identity: participant.identity });
 
     const state = get();
     if (state.avatarParticipant?.identity === participant.identity) {
@@ -991,7 +1028,7 @@ function setupRoomEventListeners(
         return;
       }
       if (AGENT_STATE_ATTRIBUTE in changedAttributes) {
-        updateAgentStateFromAttributes(participant, set);
+        updateAgentStateFromAttributes(participant, set, get);
       }
     }
   });
@@ -1005,15 +1042,18 @@ function setupRoomEventListeners(
         participant?.kind === ParticipantKind.AGENT ||
         participant?.identity === agentParticipant?.identity;
 
+      const participantName = participant?.name || participant?.identity || 'Unknown';
       const entry: TranscriptEntry = {
         id: segment.id,
         text: segment.text,
         participant: isAgent ? 'agent' : 'user',
-        participantName: participant?.name || participant?.identity || 'Unknown',
+        participantName,
         timestamp: new Date(),
         isFinal: segment.final,
         isAgent,
       };
+
+      logSpeech(isAgent ? 'agent' : 'user', segment.text, segment.final, { id: segment.id, participantName });
 
       set((state) => {
         const existingIndex = state.transcripts.findIndex((t) => t.id === segment.id);
@@ -1029,6 +1069,7 @@ function setupRoomEventListeners(
 
   // Disconnection
   room.on(RoomEvent.Disconnected, () => {
+    logLifecycle('RoomDisconnected');
     const { avatarAudioElement, agentAudioElement } = get();
     avatarAudioElement?.remove();
     agentAudioElement?.remove();
@@ -1065,6 +1106,7 @@ function setupRoomEventListeners(
     try {
       const message = JSON.parse(new TextDecoder().decode(payload));
       console.log('DataReceived [ui-engine:scene]:', message.type, message);
+      logDataChannel('ui-engine:scene', message);
 
       if (message.type === 'skeleton') {
         set({
@@ -1122,6 +1164,7 @@ function setupRoomEventListeners(
     try {
       const event = JSON.parse(new TextDecoder().decode(payload));
       console.log('DataReceived [tool-activity]:', event);
+      logDataChannel('tool-activity', event);
       const entry: TranscriptEntry = {
         id: `tool-${event.source}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         text: JSON.stringify({ _source: event.source, tool: event.tool, ...event.data }),
@@ -1146,11 +1189,11 @@ function setupRoomEventListeners(
 
     if (participant.kind === ParticipantKind.AGENT) {
       set({ agentParticipant: participant });
-      updateAgentStateFromAttributes(participant, set);
+      updateAgentStateFromAttributes(participant, set, get);
 
       participant.on('attributesChanged', (changedAttributes) => {
         if (AGENT_STATE_ATTRIBUTE in changedAttributes) {
-          updateAgentStateFromAttributes(participant, set);
+          updateAgentStateFromAttributes(participant, set, get);
         }
       });
     }
@@ -1160,10 +1203,15 @@ function setupRoomEventListeners(
 // Helper: Update agent state from participant attributes
 function updateAgentStateFromAttributes(
   participant: Participant,
-  set: (state: Partial<VoiceSessionState>) => void
+  set: (state: Partial<VoiceSessionState>) => void,
+  get?: () => VoiceSessionState
 ) {
   const stateAttr = participant.attributes[AGENT_STATE_ATTRIBUTE];
   if (stateAttr) {
+    const prev = get?.().agentState;
+    if (prev !== stateAttr) {
+      logStateChange('agentState', prev ?? 'unknown', stateAttr);
+    }
     set({ agentState: stateAttr as AgentState });
   }
 }
@@ -1187,8 +1235,11 @@ function registerRpcHandlers(
         new CustomEvent('agent-navigate', { detail: payload })
       );
 
-      return JSON.stringify({ success: true });
+      const response = { success: true };
+      logAgentToSite('navigate', payload, response);
+      return JSON.stringify(response);
     } catch (error) {
+      logAgentToSite('navigate', data.payload, undefined, error);
       console.error('RPC navigate error:', error);
       return JSON.stringify({ success: false, error: String(error) });
     }
@@ -1220,8 +1271,11 @@ function registerRpcHandlers(
         sceneFuture: [],
       }));
 
-      return JSON.stringify({ success: true });
+      const response = { success: true };
+      logAgentToSite('setScene', payload, response);
+      return JSON.stringify(response);
     } catch (error) {
+      logAgentToSite('setScene', data.payload, undefined, error);
       console.error('RPC setScene error:', error);
       return JSON.stringify({ success: false, error: String(error) });
     }
@@ -1231,24 +1285,35 @@ function registerRpcHandlers(
   localParticipant.registerRpcMethod('clearScene', async () => {
     console.log('RPC: clearScene');
     set({ sceneActive: false, currentScene: null });
-    return JSON.stringify({ success: true });
+    const response = { success: true };
+    logAgentToSite('clearScene', null, response);
+    return JSON.stringify(response);
   });
 
   // Handler: Call site function
   localParticipant.registerRpcMethod('callSiteFunction', async (data) => {
+    let fnName = 'unknown';
+    let fnArgs: unknown;
     try {
       const payload = JSON.parse(data.payload);
-      const { name, args } = payload;
-      console.log('RPC: callSiteFunction', name, args);
+      fnName = payload.name;
+      fnArgs = payload.args;
+      console.log('RPC: callSiteFunction', fnName, fnArgs);
+      logAgentToSite('callSiteFunction', payload);
 
-      const fn = (window as any).__siteFunctions?.[name];
+      const fn = (window as any).__siteFunctions?.[fnName];
       if (!fn) {
-        return JSON.stringify({ success: false, error: `Unknown site function: ${name}` });
+        const errorResponse = { success: false, error: `Unknown site function: ${fnName}` };
+        logSiteFunction(fnName, fnArgs, undefined, errorResponse.error);
+        return JSON.stringify(errorResponse);
       }
 
-      const result = await fn(args);
+      const result = await fn(fnArgs);
+      logSiteFunction(fnName, fnArgs, result);
       return JSON.stringify({ success: true, result });
     } catch (error) {
+      logSiteFunction(fnName, fnArgs, undefined, error);
+      logAgentToSite('callSiteFunction', { name: fnName, args: fnArgs }, undefined, error);
       console.error('RPC callSiteFunction error:', error);
       return JSON.stringify({ success: false, error: String(error) });
     }

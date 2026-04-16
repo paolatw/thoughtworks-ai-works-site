@@ -1,7 +1,8 @@
 'use client';
 
+import { useState, useCallback } from 'react';
 import { useVoiceSessionStore } from '@/lib/stores/voice-session-store';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X, Mic } from 'lucide-react';
 
 const agentName = process.env.NEXT_PUBLIC_AGENT_NAME || 'Catherine';
 
@@ -9,14 +10,178 @@ interface WelcomeLandingProps {
   knowledgeBaseQuestions: string[];
 }
 
+const defaultCards = [
+  {
+    question: 'Two economies are colliding',
+    subtext: 'SaaS and services economics are converging. The shift from purchasing hours to purchasing outcomes is redefining enterprise technology.',
+    actionPhrase: 'Show me the collision',
+  },
+  {
+    question: 'Why pay 3\u00D7 for the same thing?',
+    subtext: 'Build for X. Maintain for X. Modernize for X. Then repeat forever. 70% of IT budgets are trapped in this maintenance cycle.',
+    actionPhrase: 'Show me the reality',
+  },
+  {
+    question: 'What if you never modernized again?',
+    subtext: 'Self-modernizing systems that regenerate daily. Natural language requirements. Zero maintenance contracts. Modernization as a heartbeat.',
+    actionPhrase: 'Show me the vision',
+  },
+  {
+    question: 'Who built this platform?',
+    subtext: '30 years of Thoughtworks engineering leadership. Agile Manifesto signers. Microservices inventors. 10,000+ engineers globally.',
+    actionPhrase: 'Show me the platform',
+  },
+  {
+    question: 'Ready to see if this fits?',
+    subtext: '90 minutes with our architects. They review your systems, identify pilot candidates, and give you an honest assessment.',
+    actionPhrase: 'Show me orientation',
+  },
+  {
+    question: 'Book Your Orientation',
+    subtext: 'Start your 3-3-3 journey today. 3 days to concept, 3 weeks to prototype, 3 months to production.',
+    actionPhrase: 'I want to schedule an Orientation',
+  },
+];
+
 export function WelcomeLanding({
-  knowledgeBaseQuestions: _knowledgeBaseQuestions,
+  knowledgeBaseQuestions,
 }: WelcomeLandingProps) {
   const connect = useVoiceSessionStore((s) => s.connect);
   const sessionState = useVoiceSessionStore((s) => s.sessionState);
+  const avatarVideoTrack = useVoiceSessionStore((s) => s.avatarVideoTrack);
+  const tellAgent = useVoiceSessionStore((s) => s.tellAgent);
+  const sceneActive = useVoiceSessionStore((s) => s.sceneActive);
+  const currentScene = useVoiceSessionStore((s) => s.currentScene);
   const isConnecting = sessionState === 'connecting';
   const isConnected = sessionState === 'connected';
+  const hasVideo = isConnected && !!avatarVideoTrack;
+  const hasScene = sceneActive || !!currentScene;
 
+  const [showMicModal, setShowMicModal] = useState(false);
+  const [page, setPage] = useState(0);
+
+  const handleStartClick = useCallback(() => {
+    setShowMicModal(true);
+  }, []);
+
+  const handleAccept = useCallback(() => {
+    setShowMicModal(false);
+    connect();
+  }, [connect]);
+
+  const handleDecline = useCallback(() => {
+    setShowMicModal(false);
+  }, []);
+
+  const connectedCards = defaultCards;
+
+  const visibleCount = 3;
+  const maxPage = Math.max(0, Math.ceil(connectedCards.length / visibleCount) - 1);
+  const startIdx = page * visibleCount;
+  const visibleCards = connectedCards.slice(startIdx, startIdx + visibleCount);
+
+  const scrollPrev = useCallback(() => {
+    setPage((p) => (p > 0 ? p - 1 : maxPage));
+  }, [maxPage]);
+
+  const scrollNext = useCallback(() => {
+    setPage((p) => (p < maxPage ? p + 1 : 0));
+  }, [maxPage]);
+
+  // When a scene is active, hide completely
+  if (hasScene) return null;
+
+  // Connected with video: show "Ask me anything" layout
+  if (hasVideo) {
+    return (
+      <div className="min-h-dvh relative flex flex-col">
+        {/* Spacer for fixed header */}
+        <div className="h-16 md:h-20 shrink-0" />
+
+        {/* Content wrapper — left padding matches home page, right padding clears avatar */}
+        <div className="relative z-10 px-4 sm:px-6 md:px-10 lg:pl-[140px] lg:pr-[36%] flex-1 flex flex-col">
+          {/* Back link */}
+          <nav className="pt-3">
+            <button
+              onClick={() => window.history.back()}
+              className="inline-flex items-center gap-2 md:gap-3.5 text-white text-base md:text-lg font-bold font-body leading-7 hover:text-white/70 transition-colors"
+            >
+              <ChevronLeft className="w-3.5 h-3.5 stroke-[3]" />
+              Back
+            </button>
+          </nav>
+
+          {/* Main content */}
+          <main className="flex-1 flex flex-col justify-start">
+            <h1 className="font-display text-[24px] sm:text-[28px] md:text-[34px] font-bold leading-[1.2] md:leading-[40.8px] text-white mt-6 sm:mt-8 lg:mt-[34px]">
+              Ask me anything about AI/works&trade;
+            </h1>
+
+            <p className="font-body text-base sm:text-lg md:text-[20px] font-normal leading-[1.6] md:leading-[32.5px] text-white mt-3 sm:mt-4">
+              Or pick a question below to get started.
+            </p>
+
+            {/* Cards */}
+            <div className="mt-6 sm:mt-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                {visibleCards.map((card, idx) => (
+                  <button
+                    key={`${page}-${idx}`}
+                    onClick={() => tellAgent(card.actionPhrase)}
+                    className="text-left p-5 sm:p-6 bg-sky-900/80 backdrop-blur-sm border border-cyan-700/30 hover:bg-sky-800/90 transition-colors duration-200 min-h-[100px] sm:min-h-[120px] flex flex-col gap-3 animate-fade-in"
+                  >
+                    <span className="font-display text-base sm:text-lg font-bold text-white leading-snug">
+                      {card.question}
+                    </span>
+                    {card.subtext && (
+                      <span className="font-body text-xs sm:text-sm font-normal text-white/70 leading-relaxed">
+                        {card.subtext}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+
+              {/* Navigation arrows */}
+              {connectedCards.length > visibleCount && (
+                <div className="flex justify-end gap-2 mt-3">
+                  <button
+                    onClick={scrollPrev}
+                    className="w-8 h-8 bg-sky-900/80 border border-cyan-700/30 flex items-center justify-center hover:bg-sky-800 transition-colors"
+                  >
+                    <ChevronLeft className="w-4 h-4 text-white" />
+                  </button>
+                  <button
+                    onClick={scrollNext}
+                    className="w-8 h-8 bg-sky-900/80 border border-cyan-700/30 flex items-center justify-center hover:bg-sky-800 transition-colors"
+                  >
+                    <ChevronRight className="w-4 h-4 text-white" />
+                  </button>
+                </div>
+              )}
+            </div>
+          </main>
+
+          {/* Footer */}
+          <footer className="pb-4 md:pb-6 pt-4 flex flex-col gap-4 md:gap-5 shrink-0">
+            <AIWorksLogo />
+            <p className="font-body text-[10px] sm:text-xs font-normal leading-4 text-slate-50">
+              Our assistant helps you find content about AI/works. By asking a
+              question, you acknowledge that we will process your data in accordance
+              with our{' '}
+              <span className="underline">Privacy Policy</span>, and consent to
+              de-identified tracking of your conversation to help us improve the
+              experience. Please close this page if you don&apos;t agree to these
+              conditions. While we strive for accuracy, AI responses may be
+              inaccurate.
+            </p>
+          </footer>
+        </div>
+      </div>
+    );
+  }
+
+  // Pre-connection state
   return (
     <div
       className="welcome-landing min-h-dvh relative overflow-hidden flex flex-col"
@@ -74,7 +239,7 @@ export function WelcomeLanding({
           style={{ animationDelay: '0.45s' }}
         >
           <button
-            onClick={connect}
+            onClick={handleStartClick}
             disabled={isConnecting || isConnected}
             className="tw-cta-button disabled:opacity-60"
           >
@@ -133,6 +298,72 @@ export function WelcomeLanding({
           </div>
         </div>
       </footer>
+
+      {/* Microphone consent modal */}
+      {showMicModal && (
+        <MicrophoneConsentModal
+          onAccept={handleAccept}
+          onDecline={handleDecline}
+        />
+      )}
+    </div>
+  );
+}
+
+function MicrophoneConsentModal({
+  onAccept,
+  onDecline,
+}: {
+  onAccept: () => void;
+  onDecline: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        onClick={onDecline}
+      />
+      <div className="relative w-full max-w-md bg-white rounded-lg border-2 border-cyan-800 shadow-2xl animate-fade-in">
+        <button
+          onClick={onDecline}
+          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+        >
+          <X className="w-5 h-5" />
+        </button>
+        <div className="flex flex-col items-center px-8 pt-8 pb-6">
+          <div className="w-14 h-14 rounded-full border-2 border-gray-800 flex items-center justify-center mb-5">
+            <Mic className="w-7 h-7 text-gray-800" />
+          </div>
+          <h2 className="font-body text-xl font-bold text-gray-900 mb-3">
+            Allow microphone access
+          </h2>
+          <p className="font-body text-sm text-gray-600 text-center leading-relaxed mb-6">
+            To enable the voice conversation, we need access to your
+            microphone. Your audio data will be processed in real time to
+            facilitate the interaction and will not be stored after the session
+            ends.
+          </p>
+          <div className="flex items-center gap-4 mb-5">
+            <button
+              onClick={onDecline}
+              className="font-body text-sm font-bold px-7 py-2.5 border-2 border-gray-800 text-gray-800 bg-white hover:bg-gray-50 transition-colors"
+            >
+              Decline
+            </button>
+            <button
+              onClick={onAccept}
+              className="font-body text-sm font-bold px-7 py-2.5 border-2 border-transparent bg-[#8B2131] text-white hover:bg-[#7a1c2b] transition-colors"
+            >
+              Accept
+            </button>
+          </div>
+          <p className="font-body text-[11px] text-gray-400 text-center leading-4 max-w-xs">
+            By accepting, you expressly consent to the use of your microphone
+            data for this purpose. You can revoke this consent at any time by
+            turning off the microphone.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

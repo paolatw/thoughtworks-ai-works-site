@@ -10,6 +10,7 @@
  */
 
 import type { Room } from 'livekit-client';
+import { logDataChannel } from '@/lib/observability';
 
 let _room: Room | null = null;
 
@@ -47,6 +48,7 @@ export function informTele(message: string): void {
         JSON.stringify({ message, timestamp: Date.now() }),
       );
       _room.localParticipant.publishData(payload, { reliable: true, topic: 'tele:feedback' });
+      logDataChannel('tele:feedback', { message, timestamp: Date.now() }, 'outbound');
     } catch (error) {
       console.error('[informTele] Failed to publish:', error);
     }
