@@ -997,6 +997,25 @@ function setupRoomEventListeners(
           updateAgentStateFromAttributes(participant, set, get);
         }
       });
+
+      // Trigger the agent's greeting once it's ready
+      setTimeout(() => {
+        const { room: currentRoom } = get();
+        if (currentRoom?.localParticipant) {
+          currentRoom.localParticipant.performRpc({
+            destinationIdentity: participant.identity,
+            method: 'informAgent',
+            payload: JSON.stringify({
+              message: 'The user just connected to the session. Please greet them warmly and introduce yourself as their AI guide to AI/works.',
+            }),
+          }).then((res) => {
+            logSiteToAgent('informAgent (greeting)', { triggered: true }, res);
+          }).catch((err) => {
+            logSiteToAgent('informAgent (greeting)', { triggered: true }, undefined, err);
+            console.warn('Greeting trigger failed (agent may not be ready yet):', err);
+          });
+        }
+      }, 1500);
     }
   });
 

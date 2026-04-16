@@ -112,7 +112,7 @@ body {
 
 /* ── Glass Chat Width ── */
 :root {
-  --glass-chat-width: 18rem;
+  --glass-chat-width: 22rem;
 }
 @media (max-width: 1279px) {
   :root { --glass-chat-width: 100vw; }

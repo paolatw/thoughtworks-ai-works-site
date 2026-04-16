@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Send, Sparkles } from 'lucide-react';
+import { Send, ThumbsUp, ThumbsDown, User } from 'lucide-react';
 import { useVoiceSessionStore } from '@/lib/stores/voice-session-store';
 import { assets } from '@/assets';
 import { ToolCallIndicator } from './ToolCallIndicator';
@@ -19,7 +19,7 @@ export function ChatPanel() {
 
   const [textInput, setTextInput] = useState('');
   const [isSleeping, setIsSleeping] = useState(false);
-  const [showToolCalls, setShowToolCalls] = useState(true);
+  const showToolCalls = true;
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const sleepTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -27,12 +27,10 @@ export function ChatPanel() {
 
   const isConnected = sessionState === 'connected';
 
-  // Auto-scroll to bottom on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [transcripts, toolActivity]);
 
-  // Sleep mode: dim after mouse idle
   const resetSleep = useCallback(() => {
     setIsSleeping(false);
     if (sleepTimerRef.current) clearTimeout(sleepTimerRef.current);
@@ -76,19 +74,21 @@ export function ChatPanel() {
     await sendTextMessage(message);
   };
 
-  // Merge transcripts + tool activity, sorted chronologically
   const allEntries = [...transcripts, ...(showToolCalls ? toolActivity : [])];
   allEntries.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
   const visibleTranscripts = allEntries.filter((t) => {
-    if (t.participant === 'tool') return true; // already filtered above via showToolCalls
+    if (t.participant === 'tool') return true;
     return t.isFinal || t.isAgent;
   });
+
+  const agentAvatar = avatarThumbnailUrl || assets.avatarProfile;
 
   return (
     <div
       ref={panelRef}
-      className={`fixed telelabor-panel top-0 h-dvh z-50 flex flex-col
-        border-l-0
+      className={`fixed telelabor-panel top-16 md:top-20 h-[calc(100dvh-4rem)] md:h-[calc(100dvh-5rem)] z-50 flex flex-col
+        border-l border-cyan-800/50
+        bg-gray-950/85 backdrop-blur-md
         transition-[right,opacity] duration-500 ease-out
         max-xl:left-0 max-xl:right-0 max-xl:w-full
       `}
@@ -101,20 +101,16 @@ export function ChatPanel() {
       }}
     >
       {/* Chat messages area */}
-      <div className="chat-messages-container flex-1 px-4 pt-20 pb-4 flex flex-col gap-3">
+      <div className="chat-messages-container flex-1 px-4 pt-4 pb-4 flex flex-col gap-5 overflow-y-auto">
         {transcripts.length === 0 && isConnected && (
           <div className="flex-1 flex items-center justify-center">
-            <p
-              className="text-sm font-voice"
-              style={{ color: 'var(--theme-chat-placeholder)' }}
-            >
+            <p className="text-sm font-body text-white/30">
               Conversation will appear here...
             </p>
           </div>
         )}
 
         {visibleTranscripts.map((t, i) => {
-          // Tool call entries
           if (t.participant === 'tool') {
             let toolParams: Record<string, unknown> = {};
             let source: string | undefined;
@@ -137,38 +133,72 @@ export function ChatPanel() {
             );
           }
 
+          if (t.participant === 'agent') {
+            return (
+              <div
+                key={t.id}
+                className="animate-chat-bubble-enter flex flex-col items-start gap-2"
+                style={{ animationDelay: `${Math.min(i * 0.05, 0.3)}s` }}
+              >
+                {/* Agent avatar centered above bubble */}
+                <div className="flex justify-center w-full mb-1">
+                  <div className="chat-avatar w-12 h-12 rounded-full overflow-hidden border-2 border-cyan-700/40">
+                    <img
+                      src={agentAvatar}
+                      alt={currentAgentName || 'Agent'}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                </div>
+
+                {/* Agent bubble */}
+                <div
+                  className="chat-message-bubble w-full rounded-xl px-4 py-3 text-sm leading-relaxed font-body"
+                  style={{
+                    background: 'rgba(12, 33, 39, 0.85)',
+                    color: '#e0e0e0',
+                  }}
+                >
+                  {t.text}
+                </div>
+
+                {/* Thumbs feedback */}
+                <div className="flex items-center gap-3 pl-1">
+                  <button
+                    className="text-white/30 hover:text-white/70 transition-colors"
+                    title="Helpful"
+                  >
+                    <ThumbsUp className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    className="text-white/30 hover:text-white/70 transition-colors"
+                    title="Not helpful"
+                  >
+                    <ThumbsDown className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            );
+          }
+
+          // User message
           return (
             <div
               key={t.id}
-              className={`animate-chat-bubble-enter flex gap-2.5 ${
-                t.participant === 'user' ? 'flex-row-reverse' : 'flex-row'
-              }`}
+              className="animate-chat-bubble-enter flex items-start gap-2.5 justify-end"
               style={{ animationDelay: `${Math.min(i * 0.05, 0.3)}s` }}
             >
-              {/* Avatar (agent only) */}
-              {t.participant === 'agent' && (
-                <div className="chat-avatar w-7 h-7 rounded-full overflow-hidden shrink-0 mt-1">
-                  <img
-                    src={avatarThumbnailUrl || assets.avatarProfile}
-                    alt={currentAgentName || 'Agent'}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              )}
-
-              {/* Bubble */}
               <div
-                className={`chat-message-bubble max-w-[75%] sm:max-w-[70%] rounded-2xl px-3.5 py-2.5
-                  text-sm leading-relaxed transition-all duration-500
-                  hover:brightness-110 hover:shadow-lg
-                  ${t.participant === 'user' ? 'ml-auto' : ''}`}
+                className="chat-message-bubble max-w-[85%] rounded-xl px-4 py-3 text-sm leading-relaxed font-body text-right"
                 style={{
-                  background: 'var(--theme-chat-bubble)',
-                  color: 'var(--theme-chat-text)',
-                  boxShadow: '0 4px 16px rgba(0, 0, 0, 0.1)',
+                  background: 'rgba(12, 33, 39, 0.65)',
+                  color: '#e0e0e0',
                 }}
               >
                 {t.text}
+              </div>
+              <div className="w-6 h-6 rounded-full bg-sky-900/80 flex items-center justify-center shrink-0 mt-1">
+                <User className="w-3.5 h-3.5 text-white/70" />
               </div>
             </div>
           );
@@ -177,22 +207,9 @@ export function ChatPanel() {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Text input area with sparkle toggle */}
+      {/* Text input area */}
       <div className="shrink-0 px-4 pb-4 pt-2">
-        <div className="flex items-center gap-2 bg-black/40 backdrop-blur-sm rounded-full px-3 sm:px-4 py-2 sm:py-2.5">
-          {/* Smart Mode (sparkle) toggle */}
-          <button
-            onClick={() => setShowToolCalls(!showToolCalls)}
-            className={`flex items-center justify-center w-7 h-7 transition-all duration-300 flex-shrink-0 bg-transparent
-              ${showToolCalls
-                ? 'text-amber-400'
-                : 'text-gray-400/30 hover:text-gray-400/50'
-              }`}
-            title={showToolCalls ? 'Smart Mode: ON — Tool calls visible' : 'Smart Mode: OFF — Tool calls hidden'}
-          >
-            <Sparkles className="w-4 h-4 sm:w-5 sm:h-5" />
-          </button>
-
+        <div className="flex items-center gap-2 bg-gray-900/80 border border-cyan-700/30 rounded-lg px-3 sm:px-4 py-2.5">
           <input
             ref={inputRef}
             value={textInput}
@@ -204,14 +221,14 @@ export function ChatPanel() {
               }
             }}
             onFocus={resetSleep}
-            placeholder="Type a message..."
-            className="flex-1 min-w-0 bg-transparent text-white text-sm placeholder:text-white/30 focus:outline-none font-voice"
+            placeholder="Speak or Type your questions...."
+            className="flex-1 min-w-0 bg-transparent text-white text-sm placeholder:text-white/40 focus:outline-none font-body"
             disabled={!isConnected}
           />
           <button
             onClick={handleSend}
             disabled={!isConnected || textInput.trim().length === 0}
-            className="chat-icon p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-30"
+            className="w-8 h-8 rounded-md bg-[#E84855] flex items-center justify-center text-white hover:bg-[#d63d4a] transition-colors disabled:opacity-30 disabled:hover:bg-[#E84855] shrink-0"
           >
             <Send className="w-4 h-4" />
           </button>
