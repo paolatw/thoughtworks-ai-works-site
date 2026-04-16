@@ -6,6 +6,18 @@ import { ChevronLeft, ChevronRight, X, Mic } from 'lucide-react';
 
 const agentName = process.env.NEXT_PUBLIC_AGENT_NAME || 'Catherine';
 
+const platformNavItems = [
+  { label: 'Developer experience', teleQuery: 'Show me about the developer experience' },
+  { label: 'Reverse engineering', teleQuery: 'Show me reverse engineering capabilities' },
+  { label: 'Requirement capture & Enrichment', teleQuery: 'Show me requirements capture and enrichment' },
+  { label: 'Context Library', teleQuery: 'Show me about the context library' },
+  { label: 'Capabilities & Industry Solution', teleQuery: 'Show me capabilities and industry solution library' },
+  { label: 'Components Library', teleQuery: 'Show me about the components library' },
+  { label: 'Dynamic Spec Development', teleQuery: 'Show me dynamic spec development' },
+  { label: 'Spec to code Execution', teleQuery: 'Show me spec-to-code execution' },
+  { label: 'Runtime Operations', teleQuery: 'Show me about runtime operations' },
+];
+
 interface WelcomeLandingProps {
   knowledgeBaseQuestions: string[];
 }
@@ -59,6 +71,7 @@ export function WelcomeLanding({
 
   const [showMicModal, setShowMicModal] = useState(false);
   const [page, setPage] = useState(0);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const handleStartClick = useCallback(() => {
     setShowMicModal(true);
@@ -94,89 +107,140 @@ export function WelcomeLanding({
   // Connected with video: show "Ask me anything" layout
   if (hasVideo) {
     return (
-      <div className="min-h-dvh relative flex flex-col">
+      <div className="h-dvh relative flex flex-col overflow-hidden">
         {/* Spacer for fixed header */}
         <div className="h-16 md:h-20 shrink-0" />
 
-        {/* Content wrapper — left padding matches home page, right padding clears avatar */}
-        <div className="relative z-10 px-4 sm:px-6 md:px-10 lg:pl-[140px] lg:pr-[36%] flex-1 flex flex-col">
-          {/* Back link */}
-          <nav className="pt-3">
+        {/* Back link — always in the same position beneath the header */}
+        <nav className="relative z-10 px-4 sm:px-6 md:px-10 lg:px-[43px] pt-3 shrink-0">
+          <button
+            onClick={() => window.history.back()}
+            className="inline-flex items-center gap-2 md:gap-3.5 text-white text-base md:text-lg font-bold font-body leading-7 hover:text-white/70 transition-colors"
+          >
+            <ChevronLeft className="w-3.5 h-3.5 stroke-[3]" />
+            Back
+          </button>
+        </nav>
+
+        <div className="flex-1 flex relative min-h-0">
+          {/* Collapsed sidebar tab */}
+          {!sidebarOpen && (
             <button
-              onClick={() => window.history.back()}
-              className="inline-flex items-center gap-2 md:gap-3.5 text-white text-base md:text-lg font-bold font-body leading-7 hover:text-white/70 transition-colors"
+              onClick={() => setSidebarOpen(true)}
+              className="hidden lg:flex fixed left-0 top-[140px] z-20 bg-gray-900/80 backdrop-blur-sm border border-cyan-700/30 border-l-0 rounded-r-md px-1.5 py-4 items-center cursor-pointer hover:bg-gray-800/90 transition-colors"
             >
-              <ChevronLeft className="w-3.5 h-3.5 stroke-[3]" />
-              Back
+              <span
+                className="font-body text-xs font-semibold text-white tracking-wide"
+                style={{ writingMode: 'vertical-lr', transform: 'rotate(180deg)' }}
+              >
+                Explore the platform &rsaquo;
+              </span>
             </button>
-          </nav>
+          )}
 
-          {/* Main content */}
-          <main className="flex-1 flex flex-col justify-start">
-            <h1 className="font-display text-[24px] sm:text-[28px] md:text-[34px] font-bold leading-[1.2] md:leading-[40.8px] text-white mt-6 sm:mt-8 lg:mt-[34px]">
-              Ask me anything about AI/works&trade;
-            </h1>
+          {/* Expanded sidebar */}
+          <div
+            className={`hidden lg:flex flex-col shrink-0 self-start mt-6 bg-gray-900/80 backdrop-blur-sm border-r border-cyan-700/30 rounded-r-md transition-all duration-300 ease-in-out overflow-hidden ${
+              sidebarOpen ? 'w-[220px] px-5 py-6' : 'w-0 px-0 py-0'
+            }`}
+          >
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="flex items-center gap-2 mb-5 text-white hover:text-white/70 transition-colors"
+            >
+              <span className="font-body text-base font-bold text-white leading-5 tracking-tight whitespace-nowrap">
+                Explore the platform
+              </span>
+              <ChevronLeft className="w-3.5 h-3.5" />
+            </button>
 
-            <p className="font-body text-base sm:text-lg md:text-[20px] font-normal leading-[1.6] md:leading-[32.5px] text-white mt-3 sm:mt-4">
-              Or pick a question below to get started.
-            </p>
+            <nav className="flex flex-col gap-1">
+              {platformNavItems.map((item) => (
+                <button
+                  key={item.label}
+                  onClick={() => tellAgent(item.teleQuery)}
+                  className="text-left font-body text-sm font-normal text-white/80 hover:text-white hover:bg-white/5 px-2 py-2 rounded transition-colors leading-snug"
+                >
+                  {item.label}
+                </button>
+              ))}
+            </nav>
+          </div>
 
-            {/* Cards */}
-            <div className="mt-6 sm:mt-8">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-                {visibleCards.map((card, idx) => (
-                  <button
-                    key={`${page}-${idx}`}
-                    onClick={() => tellAgent(card.actionPhrase)}
-                    className="text-left p-5 sm:p-6 bg-sky-900/80 backdrop-blur-sm border border-cyan-700/30 hover:bg-sky-800/90 transition-colors duration-200 min-h-[100px] sm:min-h-[120px] flex flex-col gap-3 animate-fade-in"
-                  >
-                    <span className="font-display text-base sm:text-lg font-bold text-white leading-snug">
-                      {card.question}
-                    </span>
-                    {card.subtext && (
-                      <span className="font-body text-xs sm:text-sm font-normal text-white/70 leading-relaxed">
-                        {card.subtext}
+          {/* Content wrapper */}
+          <div
+            className={`relative z-10 px-4 sm:px-6 md:px-10 flex flex-col transition-all duration-300 ease-in-out ${
+              sidebarOpen ? 'lg:pl-8 lg:pr-[36%]' : 'lg:pl-[140px] lg:pr-[36%]'
+            }`}
+          >
+            {/* Main content */}
+            <main className="flex flex-col justify-start">
+              <h1 className="font-display text-[24px] sm:text-[28px] md:text-[34px] font-bold leading-[1.2] md:leading-[40.8px] text-white mt-6 sm:mt-8 lg:mt-[34px]">
+                Ask me anything about AI/works&trade;
+              </h1>
+
+              <p className="font-body text-base sm:text-lg md:text-[20px] font-normal leading-[1.6] md:leading-[32.5px] text-white mt-3 sm:mt-4">
+                Or pick a question below to get started.
+              </p>
+
+              {/* Cards */}
+              <div className="mt-6 sm:mt-8">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                  {visibleCards.map((card, idx) => (
+                    <button
+                      key={`${page}-${idx}`}
+                      onClick={() => tellAgent(card.actionPhrase)}
+                      className="text-left p-5 sm:p-6 bg-sky-900/80 backdrop-blur-sm border border-cyan-700/30 hover:bg-sky-800/90 transition-colors duration-200 min-h-[100px] sm:min-h-[120px] flex flex-col gap-3 animate-fade-in"
+                    >
+                      <span className="font-display text-base sm:text-lg font-bold text-white leading-snug">
+                        {card.question}
                       </span>
-                    )}
-                  </button>
-                ))}
-              </div>
-
-              {/* Navigation arrows */}
-              {connectedCards.length > visibleCount && (
-                <div className="flex justify-end gap-2 mt-3">
-                  <button
-                    onClick={scrollPrev}
-                    className="w-8 h-8 bg-sky-900/80 border border-cyan-700/30 flex items-center justify-center hover:bg-sky-800 transition-colors"
-                  >
-                    <ChevronLeft className="w-4 h-4 text-white" />
-                  </button>
-                  <button
-                    onClick={scrollNext}
-                    className="w-8 h-8 bg-sky-900/80 border border-cyan-700/30 flex items-center justify-center hover:bg-sky-800 transition-colors"
-                  >
-                    <ChevronRight className="w-4 h-4 text-white" />
-                  </button>
+                      {card.subtext && (
+                        <span className="font-body text-xs sm:text-sm font-normal text-white/70 leading-relaxed">
+                          {card.subtext}
+                        </span>
+                      )}
+                    </button>
+                  ))}
                 </div>
-              )}
-            </div>
-          </main>
 
-          {/* Footer */}
-          <footer className="pb-4 md:pb-6 pt-4 flex flex-col gap-4 md:gap-5 shrink-0">
-            <AIWorksLogo />
-            <p className="font-body text-[10px] sm:text-xs font-normal leading-4 text-slate-50">
-              Our assistant helps you find content about AI/works. By asking a
-              question, you acknowledge that we will process your data in accordance
-              with our{' '}
-              <span className="underline">Privacy Policy</span>, and consent to
-              de-identified tracking of your conversation to help us improve the
-              experience. Please close this page if you don&apos;t agree to these
-              conditions. While we strive for accuracy, AI responses may be
-              inaccurate.
-            </p>
-          </footer>
+                {/* Navigation arrows */}
+                {connectedCards.length > visibleCount && (
+                  <div className="flex justify-end gap-2 mt-3">
+                    <button
+                      onClick={scrollPrev}
+                      className="w-8 h-8 bg-sky-900/80 border border-cyan-700/30 flex items-center justify-center hover:bg-sky-800 transition-colors"
+                    >
+                      <ChevronLeft className="w-4 h-4 text-white" />
+                    </button>
+                    <button
+                      onClick={scrollNext}
+                      className="w-8 h-8 bg-sky-900/80 border border-cyan-700/30 flex items-center justify-center hover:bg-sky-800 transition-colors"
+                    >
+                      <ChevronRight className="w-4 h-4 text-white" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </main>
+
+          </div>
         </div>
+
+        {/* Footer — outside the sidebar flex so it's unaffected by sidebar state */}
+        <footer className="relative z-10 px-4 sm:px-6 md:px-10 lg:px-[140px] pb-4 md:pb-6 pt-4 flex flex-col gap-4 md:gap-5 shrink-0">
+          <AIWorksLogo />
+          <p className="font-body text-[10px] sm:text-xs font-normal leading-4 text-slate-50 max-w-[628px]">
+            Our assistant helps you find content about AI/works. By asking a
+            question, you acknowledge that we will process your data in accordance
+            with our{' '}
+            <span className="underline">Privacy Policy</span>, and consent to
+            de-identified tracking of your conversation to help us improve the
+            experience. Please close this page if you don&apos;t agree to these
+            conditions. While we strive for accuracy, AI responses may be
+            inaccurate.
+          </p>
+        </footer>
       </div>
     );
   }
